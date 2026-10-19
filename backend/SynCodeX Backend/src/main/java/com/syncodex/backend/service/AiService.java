@@ -49,17 +49,13 @@ public class AiService {
                 : request.language();
 
         try {
-            String jsonBody = objectMapper.writeValueAsString(
-                    Map.of(
-                            "code", request.code(),
-                            "language", language
-                    )
-            );
-
             Map<?, ?> response = restClient.post()
                     .uri("/api/v1/explain")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(jsonBody)
+                    .body(Map.of(
+                            "code", request.code(),
+                            "language", language
+                    ))
                     .retrieve()
                     .body(Map.class);
 
@@ -81,11 +77,6 @@ public class AiService {
                             ? response.get("status") : "success")
             );
 
-        } catch (JsonProcessingException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Could not serialize the AI request"
-            );
         } catch (RestClientException ex) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
@@ -104,16 +95,10 @@ public class AiService {
         }
 
         try {
-            String jsonBody = objectMapper.writeValueAsString(
-                    Map.of("question", request.question())
-            );
-
-            System.out.println("Repository request JSON: " + jsonBody);
-
             String responseBody = restClient.post()
                     .uri("/api/v1/repository/ask")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(jsonBody)
+                    .body(Map.of("question", request.question()))
                     .retrieve()
                     .body(String.class);
 
@@ -136,9 +121,6 @@ public class AiService {
             );
 
         } catch (RestClientException ex) {
-            System.err.println("Repository AI request failed:");
-            ex.printStackTrace();
-
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "AI service request failed"
