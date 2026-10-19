@@ -1,0 +1,24 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Java / Maven
+target/
+
+# Node.js
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# Local data
+data/
+*.log
