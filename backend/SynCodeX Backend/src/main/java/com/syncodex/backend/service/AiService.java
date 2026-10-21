@@ -15,6 +15,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.syncodex.backend.dto.McpRepositoryAnswer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Service
@@ -86,46 +88,108 @@ public class AiService {
     }
 
 
-    public RepositoryAnswer askRepository(RepositoryQuestionRequest request) {
-        if (request.question() == null || request.question().isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Question cannot be empty"
-            );
-        }
 
-        try {
-            String responseBody = restClient.post()
-                    .uri("/api/v1/repository/ask")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("question", request.question()))
-                    .retrieve()
-                    .body(String.class);
-
-            if (responseBody == null) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_GATEWAY,
-                        "AI service returned an empty response"
-                );
-            }
-
-            return objectMapper.readValue(
-                    responseBody,
-                    RepositoryAnswer.class
-            );
-
-        } catch (JsonProcessingException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Could not process the repository answer"
-            );
-
-        } catch (RestClientException ex) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "AI service request failed"
-            );
-        }
+public RepositoryAnswer askRepository(RepositoryQuestionRequest request) {
+    if (request.question() == null || request.question().isBlank()) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Question cannot be empty"
+        );
     }
+
+    try {
+        byte[] jsonBody = objectMapper.writeValueAsBytes(
+                Map.of("question", request.question())
+        );
+
+        byte[] responseBytes = restClient.post()
+                .uri("/api/v1/repository/ask")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(jsonBody)
+                .retrieve()
+                .body(byte[].class);
+
+        if (responseBytes == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "AI service returned an empty response"
+            );
+        }
+
+        String responseBody = new String(responseBytes, StandardCharsets.UTF_8);
+        return objectMapper.readValue(
+                responseBody,
+                RepositoryAnswer.class
+        );
+
+    } catch (JsonProcessingException ex) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Could not serialize or process the repository answer",
+                ex
+        );
+
+    } catch (RestClientException ex) {
+        System.err.println("AI service request failed:");
+        ex.printStackTrace();
+
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "AI service request failed: " + ex.getMessage()
+        );
+    }
+}
+
+
+public McpRepositoryAnswer askRepositoryWithMcp(
+        RepositoryQuestionRequest request
+) {
+    if (request.question() == null || request.question().isBlank()) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Question cannot be empty"
+        );
+    }
+
+    try {
+        byte[] jsonBody = objectMapper.writeValueAsBytes(
+                Map.of("question", request.question())
+        );
+
+        byte[] responseBytes = restClient.post()
+                .uri("/api/v1/mcp/ask")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(jsonBody)
+                .retrieve()
+                .body(byte[].class);
+
+        if (responseBytes == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "AI service returned an empty MCP response"
+            );
+        }
+
+        String responseBody = new String(responseBytes, StandardCharsets.UTF_8);
+        return objectMapper.readValue(
+                responseBody,
+                McpRepositoryAnswer.class
+        );
+
+    } catch (JsonProcessingException ex) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "Could not process the MCP repository answer",
+                ex
+        );
+
+    } catch (RestClientException ex) {
+        throw new ResponseStatusException(
+                HttpStatus.BAD_GATEWAY,
+                "MCP repository request failed: " + ex.getMessage()
+        );
+    }
+}
+
 
 }

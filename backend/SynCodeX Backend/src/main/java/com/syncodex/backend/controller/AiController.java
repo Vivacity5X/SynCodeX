@@ -5,7 +5,7 @@ import com.syncodex.backend.dto.ExplainRequest;
 import com.syncodex.backend.dto.ExplainResponse;
 import com.syncodex.backend.service.AiService;
 import org.springframework.web.bind.annotation.*;
-
+import com.syncodex.backend.dto.McpRepositoryAnswer;
 import com.syncodex.backend.dto.RepositoryAnswer;
 import com.syncodex.backend.dto.RepositoryQuestionRequest;
 
@@ -31,6 +31,13 @@ public class AiController {
             @RequestBody RepositoryQuestionRequest request
     ) {
         return aiService.askRepository(request);
+    }
+
+    @PostMapping("/repository/ask-mcp")
+    public McpRepositoryAnswer askRepositoryWithMcp(
+            @RequestBody RepositoryQuestionRequest request
+    ) {
+        return aiService.askRepositoryWithMcp(request);
     }
 
 }
