@@ -11,6 +11,10 @@ CHUNK_OVERLAP = 8
 MAX_SOURCE_FILES = 3000
 MAX_FILE_BYTES = 1_000_000
 MAX_QUERY_RESULTS = 20
+SENSITIVE_SUFFIXES = {".pem", ".key", ".p12", ".pfx", ".keystore"}
+SECRET_ASSIGNMENT = re.compile(
+    r"(?i)(\b(?:[\w.-]*(?:password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential)[\w.-]*)\b\s*[:=]\s*)([^\s,;#]+)"
+)
 
 COMMON_QUERY_WORDS = {
     "a", "an", "and", "are", "does", "for", "from", "how", "i", "in",
@@ -62,12 +66,22 @@ def _iter_source_files(
         directories[:] = sorted(
             directory
             for directory in directories
-            if directory.casefold() not in ignored and not directory.startswith(".")
+            if directory.casefold() not in ignored
+            and not directory.startswith(".")
+            and not (Path(current_dir) / directory).is_symlink()
         )
         current_path = Path(current_dir)
         for filename in filenames:
             path = current_path / filename
-            if path.suffix.casefold() in searchable_extensions:
+            lowered_name = filename.casefold()
+            if (
+                path.suffix.casefold() in searchable_extensions
+                and not path.is_symlink()
+                and lowered_name not in {"credentials", "secrets", "id_rsa", "id_ed25519"}
+                and not lowered_name.startswith(".env.")
+                and not any(token in lowered_name for token in ("credential", "secret", "private_key"))
+                and path.suffix.casefold() not in SENSITIVE_SUFFIXES
+            ):
                 discovered.append((path.relative_to(repository_root).as_posix(), path))
 
     return sorted(discovered, key=lambda item: item[0].casefold())[:MAX_SOURCE_FILES]
@@ -77,7 +91,8 @@ def _read_source(path: Path) -> list[str] | None:
     try:
         if path.stat().st_size > MAX_FILE_BYTES:
             return None
-        return path.read_text(encoding="utf-8", errors="replace").splitlines()
+        content = path.read_text(encoding="utf-8", errors="replace")
+        return SECRET_ASSIGNMENT.sub(r"\1[REDACTED]", content).splitlines()
     except OSError:
         return None
 
@@ -122,7 +137,7 @@ def retrieve_relevant_chunks(
     normalized_question = _normalized_text(question)
     query_terms = _query_terms(question)
     documents = [
-        f"{_normalized_text(chunk['file'])} {chunk['content']}"
+        f"{_normalized_text(chunk['file'])} {_normalized_text(chunk['content'])}"
         for chunk in chunks
     ]
     vectorizer = TfidfVectorizer(

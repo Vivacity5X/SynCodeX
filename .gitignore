@@ -22,3 +22,4 @@ dist/
 # Local data
 data/
 *.log
+.syncodex/
